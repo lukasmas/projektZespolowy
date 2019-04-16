@@ -5,6 +5,8 @@ import * as sqlite3 from 'sqlite3';
 import * as fs from 'fs';
 import * as url from 'url';
 
+const path = require('path');
+
 const app = express();
 
 //initialize a simple http server
@@ -13,35 +15,57 @@ var db = null;
 var arr = [];
 var result = [];
 
-const server = http.createServer(function (req, res) {
+const server = http.createServer(app); //{
         
-    var queryData = url.parse(req.url, true).query;
-    if(queryData.id){
-        try{
-            res.writeHead(200, {'Content-Type': 'text/plain'});
-            console.log(parseInt(queryData.id.toString()));
-            res.write(JSON.stringify(result[parseInt(queryData.id.toString())]));
-            res.end();
-        }
-        catch{
-            res.writeHead(200, {'Content-Type': 'text/plain'});
-            res.write("SOMETHING GONE WRONG!");
-            res.end();
-        }
-    }
-    else {
-        try{
-            fs.readFile('stronaHome/index.html', function(err, data) {
-            res.writeHead(200, {'Content-Type': 'text/html'});
-            res.write(data);
-            res.end();
-            });
-        }
-        catch{
-            console.log("ERR");
-        }
-    }
-  });
+//     var queryData = url.parse(req.url, true).query;
+//     if(queryData.id){
+//         try{
+//             res.writeHead(200, {'Content-Type': 'text/plain'});
+//             console.log(parseInt(queryData.id.toString()));
+//             res.write(JSON.stringify(result[parseInt(queryData.id.toString())]));
+//             res.end();
+//         }
+//         catch{
+//             res.writeHead(200, {'Content-Type': 'text/plain'});
+//             res.write("SOMETHING GONE WRONG!");
+//             res.end();
+//         }
+//     }
+//     else {
+//         try{
+//             fs.readFile('stronaHome/index.html', function(err, data) {
+//             res.writeHead(200, {'Content-Type': 'text/html'});
+//             res.write(data);
+//             res.end();
+//             });
+//         }
+//         catch{
+//             console.log("ERR");
+//         }
+//     }
+//   });
+
+
+
+// Serve the static files from the React app
+app.use(express.static(path.join(__dirname, 'stronaHome')));
+
+// An api endpoint that returns a short list of items
+app.get('/api/getList', (req,res) => {
+    var list = ["item1", "item2", "item3"];
+    res.json(list);
+    console.log('Sent list of items');
+});
+
+// Handles any requests that don't match the ones above
+app.get('*', (req,res) =>{
+    res.sendFile(path.join(__dirname+'stronaHome/index.html'));
+});
+
+// const port = process.env.PORT || 5000;
+// app.listen(port);
+
+// console.log('App is listening on port ' + port);
 
 
 openDatabase();
@@ -82,7 +106,7 @@ wss.on('connection', (ws: WebSocket) => {
     //ws.send('Hi there, I am a WebSocket server');
 });
 
-//start our server
+// start our server
 server.listen(process.env.PORT || 8999, () => {
     console.log(`Server started on port 8999 :)`);
 });
