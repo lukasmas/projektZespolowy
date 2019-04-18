@@ -4,6 +4,8 @@ var express = require("express");
 var http = require("http");
 var WebSocket = require("ws");
 var sqlite3 = require("sqlite3");
+var raspi = require('raspi');
+var Serial = require('raspi-serial').Serial;
 var path = require('path');
 var app = express();
 //initialize a simple http server
@@ -12,35 +14,8 @@ var db = null;
 var arr = [];
 var result = [];
 var server = http.createServer(app); //{
-//     var queryData = url.parse(req.url, true).query;
-//     if(queryData.id){
-//         try{
-//             res.writeHead(200, {'Content-Type': 'text/plain'});
-//             console.log(parseInt(queryData.id.toString()));
-//             res.write(JSON.stringify(result[parseInt(queryData.id.toString())]));
-//             res.end();
-//         }
-//         catch{
-//             res.writeHead(200, {'Content-Type': 'text/plain'});
-//             res.write("SOMETHING GONE WRONG!");
-//             res.end();
-//         }
-//     }
-//     else {
-//         try{
-//             fs.readFile('stronaHome/index.html', function(err, data) {
-//             res.writeHead(200, {'Content-Type': 'text/html'});
-//             res.write(data);
-//             res.end();
-//             });
-//         }
-//         catch{
-//             console.log("ERR");
-//         }
-//     }
-//   });
 // Serve the static files from the React app
-app.use(express.static(path.join(__dirname, 'stronaHome')));
+app.use(express.static(path.join(__dirname, 'build')));
 // An api endpoint that returns a short list of items
 app.get('/api/getList', function (req, res) {
     var list = ["item1", "item2", "item3"];
@@ -49,7 +24,7 @@ app.get('/api/getList', function (req, res) {
 });
 // Handles any requests that don't match the ones above
 app.get('*', function (req, res) {
-    res.sendFile(path.join(__dirname + 'stronaHome/index.html'));
+    res.sendFile(path.join(__dirname + 'build/index.html'));
 });
 // const port = process.env.PORT || 5000;
 // app.listen(port);
@@ -66,11 +41,6 @@ wss.on('connection', function (ws) {
             arr.push(obj);
             dosth(arr.pop());
             ws.send("OK!");
-            // console.log(obj);
-            // console.log("type = %s",obj.type);
-            // console.log("value = %s",obj.value);
-            // obj.value = 4;
-            // ws.send(JSON.stringify(obj));
         }
         catch (_a) {
             console.log("Not a JSOS!");
@@ -80,9 +50,6 @@ wss.on('connection', function (ws) {
     });
     //send immediatly a feedback to the incoming connection
     var x = DataFromDatabase(ws);
-    //console.log(x);
-    //ws.send(x);    
-    //ws.send('Hi there, I am a WebSocket server');
 });
 // start our server
 server.listen(process.env.PORT || 8999, function () {
@@ -119,20 +86,10 @@ function DataFromDatabase(obj) {
             temp += "}";
             console.log(temp);
             result.push(temp);
-            // var temp = `{`;
-            // temp += `"id" : ${row.id},\n`;
-            // temp += `"type" : "${row.type}",\n`;
-            // temp += `"value" : ${row.value}\n`;
-            // temp += `}`;
-            //console.log(result);
-            //return result;
             try {
                 temp = JSON.parse(temp);
                 //console.log("OK!");
                 result.push(temp);
-                // return result;
-                // obj.send(JSON.stringify(temp));
-                // console.log("OK!");
             }
             catch (_a) {
                 obj.send("Err");
@@ -144,3 +101,25 @@ function DataFromDatabase(obj) {
 }
 function AddToDataBase(obj) {
 }
+var slowo = "";
+raspi.init(function () {
+    var serial = new Serial({
+        portId: "/dev/ttyS0",
+        baudRate: 115200
+    });
+    serial.open(function () {
+        serial.on('data', function (data) {
+            //   process.stdout.write(data);
+            if (data != " ") {
+                slowo += data;
+            }
+            else {
+                process.stdout.write(slowo + " ");
+                slowo = "";
+                serial.write("OK");
+            }
+            //   console.log(data);
+        });
+        serial.write('Hello from raspi-serial');
+    });
+});
