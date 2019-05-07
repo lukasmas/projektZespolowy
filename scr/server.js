@@ -8,39 +8,28 @@ var raspi = require('raspi');
 var Serial = require('raspi-serial').Serial;
 var path = require('path');
 var app = express();
-//initialize a simple http server
-//const server = http.createServer(app);
 var db = null;
 var arr = [];
 var result = [];
-var server = http.createServer(app); //{
-// Serve the static files from the React app
+var server = http.createServer(app);
 app.use(express.static(path.join(__dirname, 'build')));
-// An api endpoint that returns a short list of items
 app.get('/api/getList', function (req, res) {
     var list = ["item1", "item2", "item3"];
     res.json(list);
     console.log('Sent list of items');
 });
-// Handles any requests that don't match the ones above
 app.get('*', function (req, res) {
     res.sendFile(path.join(__dirname + 'build/index.html'));
 });
-// const port = process.env.PORT || 5000;
-// app.listen(port);
-// console.log('App is listening on port ' + port);
 openDatabase();
-//initialize the WebSocket server instance
 var wss = new WebSocket.Server({ server: server });
 wss.on('connection', function (ws) {
-    //connection is up, let's add a simple simple event
     ws.on('message', function (message) {
-        //log the received message and send it back to the client
         try {
             var obj = JSON.parse(message);
             arr.push(obj);
             dosth(arr.pop());
-            ws.send("OK!");
+            ws.send(message);
         }
         catch (_a) {
             console.log("Not a JSOS!");
@@ -48,7 +37,6 @@ wss.on('connection', function (ws) {
             ws.send("Hello, you sent -> " + message);
         }
     });
-    //send immediatly a feedback to the incoming connection
     var x = DataFromDatabase(ws);
 });
 // start our server
@@ -67,41 +55,44 @@ function openDatabase() {
     });
 }
 function DataFromDatabase(obj) {
-    //var result = [];
-    // Select * from tablica
     var sql = 'SELECT * from test1';
-    //result = "{ \"id\" : 0, \"type\" : \"button\", \"value\" : 1}";
     db.all(sql, [], function (err, rows) {
         if (err) {
             throw err;
         }
         rows.forEach(function (row) {
-            //result += row.name + " ";
-            //console.log(row);
             var x = Object.keys(row);
-            var temp = "{\n";
+            var device = "\"data\": {\n";
             x.forEach(function (key) {
-                temp += "\"" + key + "\" : " + row[key] + ",\n";
+                // if(key != "value")
+                    device += "\"" + key + "\" : \"" + row[key] + "\",\n";
+                // else
+                //     device += "\"" + key + "\" : \"" + row[key] + "\"\n";
+                
             });
-            temp += "}";
-            console.log(temp);
-            result.push(temp);
+            device += "\"title\" : \"test_"+row["id"]+"\"\n";
+            device += "}";
+            let JData = "{\n" + device + ",\n" + "\"type\": \"CREATE_DEVICE\" \n}"
+            // console.log(JData + "\n");
             try {
-                temp = JSON.parse(temp);
-                //console.log("OK!");
-                result.push(temp);
+                obj.send(JData);
+                JData = JSON.parse(JData);
+                console.log(JData);
+                
+
             }
             catch (_a) {
                 obj.send("Err");
+                // console.log(_a);
             }
         });
-        obj.send(result);
-        obj.send("Witam!");
     });
 }
 function AddToDataBase(obj) {
 }
 var slowo = "";
+var port = '';
+var status = '';
 raspi.init(function () {
     var serial = new Serial({
         portId: "/dev/ttyS0",
@@ -109,16 +100,16 @@ raspi.init(function () {
     });
     serial.open(function () {
         serial.on('data', function (data) {
-            //   process.stdout.write(data);
             if (data != " ") {
                 slowo += data;
             }
             else {
-                process.stdout.write(slowo + " ");
+                port = slowo[0] + slowo[1];
+                status = slowo[2];
+                process.stdout.write("port: " + port + ", status: " + status + "\n ");
                 slowo = "";
                 serial.write("OK");
             }
-            //   console.log(data);
         });
         serial.write('Hello from raspi-serial');
     });

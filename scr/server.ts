@@ -141,7 +141,9 @@ function AddToDataBase(obj){
     
 }
 
-let slowo = ""
+let slowo = [];
+let port = '';
+let status = ''
 
 raspi.init(() => {
   var serial = new Serial({
@@ -155,8 +157,13 @@ raspi.init(() => {
         slowo += data
         }
         else{
-            process.stdout.write(slowo + " ");
-            slowo = "";
+            port = slowo.shift()+slowo.shift();
+            status = slowo.toString();
+            
+
+            process.stdout.write("port: " + port + ", status: "+ status + "\n");
+
+            //slowo = [];
             serial.write("OK");
         }
     //   console.log(data);
