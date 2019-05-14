@@ -8,9 +8,20 @@ var raspi = require('raspi');
 var Serial = require('raspi-serial').Serial;
 var path = require('path');
 var app = express();
+var dbHandler = require('./db-handler');
 var db = null;
 var arr = [];
 var result = [];
+
+const type = {
+    UPDATE_DEVICE: 'UPDATE_DEVICE',
+    CREATE_DEVICE: 'CREATE_DEVICE',
+    FETCH_DEVICES: 'FETCH_DEVICES',
+    DELETE_DEVICE: 'DELETE_DEVICE',
+    ERROR: 'ERROR'
+};
+
+
 var server = http.createServer(app);
 app.use(express.static(path.join(__dirname, 'build')));
 app.get('/api/getList', function (req, res) {
@@ -26,15 +37,43 @@ var wss = new WebSocket.Server({ server: server });
 wss.on('connection', function (ws) {
     ws.on('message', function (message) {
         try {
+            console.log(message);
             var obj = JSON.parse(message);
-            arr.push(obj);
-            dosth(arr.pop());
+            switch (obj["type"]) {
+                case type.UPDATE_DEVICE:
+                    // function takes json with data.
+                    // returning it in callback when there's no error
+                    dbHandler.updateDevice(db, obj, (json) => {
+                        console.log(json);
+                    });
+                    break;
+                case type.CREATE_DEVICE:
+                    dbHandler.createDevice(db, obj, (json) => {
+                        console.log(json);
+                    });
+                    break;
+                case type.FETCH_DEVICES:
+                    dbHandler.getDevices(db, (json) => {
+                        console.log(json);
+                    });
+                    break;
+                case type.DELETE_DEVICE:
+                    dbHandler.deleteDevice(db, obj, (json) => {
+                        console.log(json);
+                    });
+                    break;
+                case type.ERROR:
+                    console.log("ERROR type json");
+                    break;
+                default:
+                    console.log("Incorrect json type");
+            }
             ws.send(message);
         }
         catch (_a) {
             console.log("Not a JSOS!");
             console.log('received: %s', message);
-            ws.send("Hello, you sent -> " + message);
+            ws.send(message);
         }
     });
     var x = DataFromDatabase(ws);
@@ -43,11 +82,9 @@ wss.on('connection', function (ws) {
 server.listen(process.env.PORT || 8999, function () {
     console.log("Server started on port 8999 :)");
 });
-function dosth(obj) {
-    console.log(obj);
-}
+
 function openDatabase() {
-    db = new sqlite3.Database('../baza/test.db', function (err) {
+    db = new sqlite3.Database('../baza/mainDB.db', function (err) {
         if (err) {
             console.error(err.message);
         }
@@ -55,7 +92,7 @@ function openDatabase() {
     });
 }
 function DataFromDatabase(obj) {
-    var sql = 'SELECT * from test1';
+    var sql = 'SELECT * from Devices';
     db.all(sql, [], function (err, rows) {
         if (err) {
             throw err;
@@ -63,32 +100,29 @@ function DataFromDatabase(obj) {
         rows.forEach(function (row) {
             var x = Object.keys(row);
             var device = "\"data\": {\n";
+            let count = x.length;
+            let i = 0;
             x.forEach(function (key) {
-                // if(key != "value")
+                if( i+1 != count )
                     device += "\"" + key + "\" : \"" + row[key] + "\",\n";
-                // else
-                //     device += "\"" + key + "\" : \"" + row[key] + "\"\n";
-                
+                else
+                    device += "\"" + key + "\" : \"" + row[key] + "\"\n";
+                i++;
             });
-            device += "\"title\" : \"test_"+row["id"]+"\"\n";
             device += "}";
             let JData = "{\n" + device + ",\n" + "\"type\": \"CREATE_DEVICE\" \n}"
-            // console.log(JData + "\n");
             try {
                 obj.send(JData);
                 JData = JSON.parse(JData);
                 console.log(JData);
-                
 
             }
             catch (_a) {
                 obj.send("Err");
-                // console.log(_a);
+                console.log(JData);
             }
         });
     });
-}
-function AddToDataBase(obj) {
 }
 var slowo = "";
 var port = '';
