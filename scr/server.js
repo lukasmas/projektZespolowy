@@ -12,6 +12,7 @@ var dbHandler = require('./db-handler');
 var db = null;
 var arr = [];
 var result = [];
+var serial;
 
 const type = {
     UPDATE_DEVICE: 'UPDATE_DEVICE',
@@ -24,11 +25,6 @@ const type = {
 
 var server = http.createServer(app);
 app.use(express.static(path.join(__dirname, 'build')));
-app.get('/api/getList', function (req, res) {
-    var list = ["item1", "item2", "item3"];
-    res.json(list);
-    console.log('Sent list of items');
-});
 app.get('*', function (req, res) {
     res.sendFile(path.join(__dirname + 'build/index.html'));
 });
@@ -41,10 +37,11 @@ wss.on('connection', function (ws) {
             var obj = JSON.parse(message);
             switch (obj["type"]) {
                 case type.UPDATE_DEVICE:
-                    // function takes json with data.
-                    // returning it in callback when there's no error
                     dbHandler.updateDevice(db, obj, (json) => {
-                        console.log(json);
+                        console.log(json.data.value);
+                        let temp = "t0" + json.data.port + json.data.value;
+                        console.log(temp);
+                        serial.write(temp);
                     });
                     break;
                 case type.CREATE_DEVICE:
@@ -103,8 +100,12 @@ function DataFromDatabase(obj) {
             let count = x.length;
             let i = 0;
             x.forEach(function (key) {
+                
                 if( i+1 != count )
-                    device += "\"" + key + "\" : \"" + row[key] + "\",\n";
+                    if( key != "value")
+                        device += "\"" + key + "\" : \"" + row[key] + "\",\n";
+                    else
+                        device += "\"" + key + "\" : " + row[key] + ",\n";
                 else
                     device += "\"" + key + "\" : \"" + row[key] + "\"\n";
                 i++;
@@ -128,23 +129,23 @@ var slowo = "";
 var port = '';
 var status = '';
 raspi.init(function () {
-    var serial = new Serial({
+    serial = new Serial({
         portId: "/dev/ttyS0",
         baudRate: 115200
     });
     serial.open(function () {
         serial.on('data', function (data) {
-            if (data != " ") {
-                slowo += data;
-            }
-            else {
-                port = slowo[0] + slowo[1];
-                status = slowo[2];
-                process.stdout.write("port: " + port + ", status: " + status + "\n ");
-                slowo = "";
-                serial.write("OK");
-            }
+            let obj =data.toString();
+
+            //update funckja update
+            dbHandler.updateDevice(db, obj, (json) => {
+                console.log(json.data.value);
+                let temp = "t0" + json.data.port + json.data.value;
+                console.log(temp);
+            });
+            
         });
-        serial.write('Hello from raspi-serial');
+        // serial.write("t041"); // triger, [2] port, value
+        // console.log(data);
     });
 });
