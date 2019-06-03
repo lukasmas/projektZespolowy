@@ -13,6 +13,8 @@ var db = null;
 var arr = [];
 var result = [];
 var serial;
+const sensor = require('ds18b20-raspi');
+var tempC = sensor.readSimpleC(1);
 
 const type = {
     UPDATE_DEVICE: 'UPDATE_DEVICE',
@@ -66,19 +68,42 @@ wss.on('connection', function (ws) {
                     console.log("Incorrect json type");
             }
             ws.send(message);
+            
+            temp(ws);
         }
         catch (_a) {
             console.log("Not a JSOS!");
             console.log('received: %s', message);
+            message = "\"data\" : \"something is not yes\", \"type\":\"ERROR\"";
             ws.send(message);
         }
     });
-    var x = DataFromDatabase(ws);
+    DataFromDatabase(ws);
+    
 });
 // start our server
 server.listen(process.env.PORT || 8999, function () {
     console.log("Server started on port 8999 :)");
 });
+
+function temp(ws){
+
+    var device = "\"data\": {\n";
+    device +="\"id\": \"9\", \"type\": \"sensor\", \"title\": \"TEMP\", \"value\": " + tempC + ", \"port\": \"99\"";
+    device += "}";
+    let JData = "{\n" + device + ",\n" + "\"type\": \"UPDATE_DEVICE\" \n}"
+    console.log(`${tempC} degC`);
+    try {
+        ws.send(JData);
+        JData = JSON.parse(JData);
+        console.log(JData);
+
+    }
+    catch (_a) {
+        ws.send("\"data\" : \"something is not yes\", \"type\":\"ERROR\"");
+        console.log(JData);
+    }
+}
 
 function openDatabase() {
     db = new sqlite3.Database('../baza/mainDB.db', function (err) {
@@ -115,19 +140,19 @@ function DataFromDatabase(obj) {
             try {
                 obj.send(JData);
                 JData = JSON.parse(JData);
+                
                 console.log(JData);
 
             }
             catch (_a) {
-                obj.send("Err");
+                obj.send("\"data\" : \"something is not yes\", \"type\":\"ERROR\"");
                 console.log(JData);
             }
         });
+        temp(obj);
     });
 }
-var slowo = "";
-var port = '';
-var status = '';
+
 raspi.init(function () {
     serial = new Serial({
         portId: "/dev/ttyS0",
@@ -135,17 +160,20 @@ raspi.init(function () {
     });
     serial.open(function () {
         serial.on('data', function (data) {
-            let obj =data.toString();
+            let obj = data.toString();
 
             //update funckja update
-            dbHandler.updateDevice(db, obj, (json) => {
-                console.log(json.data.value);
-                let temp = "t0" + json.data.port + json.data.value;
-                console.log(temp);
-            });
+            // console.log(obj[3]+" "+obj[2]);
+            var sql = 'UPDATE Devices SET value = ? WHERE port = ?';
+            let dataToUpdate = [obj[3], obj[2]];
+            db.run(sql, dataToUpdate, function(err) {
+                if (err) {
+                  return console.error(err.message);
+                }
+                console.log(`Row(s) updated: ${this.changes}`);
+              });
             
         });
         // serial.write("t041"); // triger, [2] port, value
-        // console.log(data);
     });
 });

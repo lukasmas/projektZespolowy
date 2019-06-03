@@ -79,13 +79,49 @@ function updateDevice(db, json, fn) {
                 return fn(errorJson);
             }
             console.log('Device updated.');
+            addLog(db, json["data"]["id_device"], `Device updated: new value: ` + json["data"]["value"]);
             return fn(json);
         });
 }
 
-function close() {
+function close(db) {
     db.close();
 }
+function addLog(db, id_device, value){
+    db.run(
+        `INSERT INTO Logs (time, value, id_device)
+        VALUES ( datetime('now', '+2 hours'), ? , ?)`,
+        value, id_device,
+        (err) => {
+            if (err) {
+                console.log('Log DB error: ' + err);
+                return;
+            }
+            console.log('Log added.');
+        });
+}
+
+
+
+function getDeviceLogs(db, id_device, fn){
+    db.each("SELECT * FROM Logs Where id_device = ?",id_device, (err, row) => {
+        if(err){
+            console.log("Log db error:"+ err);
+            return
+        }
+        return fn(row);
+    });
+};
+
+function getAllLogs(db, fn){
+    db.each("SELECT * FROM Logs", (err, row) => {
+        if(err){
+            console.log("Log db error:"+ err);
+            return;
+        }
+        return fn(row);
+    });
+};
 
 // exporting functions 
 module.exports = {
@@ -93,6 +129,9 @@ module.exports = {
     createDevice: createDevice,
     deleteDevice: deleteDevice,
     updateDevice: updateDevice,
+    addLog:addLog,
+    getDeviceLogs:getDeviceLogs,
+    getAllLogs:getAllLogs,
     close: close
 }
 

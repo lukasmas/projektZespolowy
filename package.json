@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "ds18b20-raspi": "^0.3.3",
     "express": "^4.16.4",
     "sqlite3": "^4.0.6",
     "ws": "^6.2.1"
