@@ -41,9 +41,9 @@ wss.on('connection', function (ws) {
                 case type.UPDATE_DEVICE:
                     dbHandler.updateDevice(db, obj, (json) => {
                         console.log(json.data.value);
-                        let temp = "t0" + json.data.port + json.data.value;
-                        console.log(temp);
-                        serial.write(temp);
+                        let tmp = "T0" + json.data.port + json.data.value;
+                        console.log(tmp);
+                        serial.write(tmp);
                     });
                     break;
                 case type.CREATE_DEVICE:
@@ -74,7 +74,7 @@ wss.on('connection', function (ws) {
         catch (_a) {
             console.log("Not a JSOS!");
             console.log('received: %s', message);
-            message = "\"data\" : \"something is not yes\", \"type\":\"ERROR\"";
+            message = "{\"data\" : \"something is not yes\", \"type\":\"ERROR\"}";
             ws.send(message);
         }
     });
@@ -89,10 +89,10 @@ server.listen(process.env.PORT || 8999, function () {
 function temp(ws){
 
     var device = "\"data\": {\n";
-    device +="\"id\": \"9\", \"type\": \"sensor\", \"title\": \"TEMP\", \"value\": " + tempC + ", \"port\": \"99\"";
+    device +="\"id\": \"9\", \"type\": \"sensor\", \"title\": \"TEMP\", \"value\": " + sensor.readSimpleC(1) + ", \"port\": \"99\"";
     device += "}";
     let JData = "{\n" + device + ",\n" + "\"type\": \"UPDATE_DEVICE\" \n}"
-    console.log(`${tempC} degC`);
+    console.log(`${sensor.readSimpleC(1)} degC`);
     try {
         ws.send(JData);
         JData = JSON.parse(JData);
@@ -100,7 +100,7 @@ function temp(ws){
 
     }
     catch (_a) {
-        ws.send("\"data\" : \"something is not yes\", \"type\":\"ERROR\"");
+        ws.send("{\"data\" : \"something is not yes\", \"type\":\"ERROR\"}");
         console.log(JData);
     }
 }
@@ -145,7 +145,47 @@ function DataFromDatabase(obj) {
 
             }
             catch (_a) {
-                obj.send("\"data\" : \"something is not yes\", \"type\":\"ERROR\"");
+                obj.send("{\"data\" : \"something is not yes\", \"type\":\"ERROR\"}");
+                console.log(JData);
+            }
+        });
+        temp(obj);
+    });
+}
+
+function DataFromDatabaseByPort(obj, port) {
+    var sql = `SELECT * from Devices WHERE port = ${port}`;
+    db.all(sql, [], function (err, rows) {
+        if (err) {
+            throw err;
+        }
+        rows.forEach(function (row) {
+            var x = Object.keys(row);
+            var device = "\"data\": {\n";
+            let count = x.length;
+            let i = 0;
+            x.forEach(function (key) {
+                
+                if( i+1 != count )
+                    if( key != "value")
+                        device += "\"" + key + "\" : \"" + row[key] + "\",\n";
+                    else
+                        device += "\"" + key + "\" : " + row[key] + ",\n";
+                else
+                    device += "\"" + key + "\" : \"" + row[key] + "\"\n";
+                i++;
+            });
+            device += "}";
+            let JData = "{\n" + device + ",\n" + "\"type\": \"UPDATE_DEVICE\" \n}"
+            try {
+                obj.send(JData);
+                JData = JSON.parse(JData);
+                
+                console.log(JData);
+
+            }
+            catch (_a) {
+                obj.send("{\"data\" : \"something is not yes\", \"type\":\"ERROR\"}");
                 console.log(JData);
             }
         });
@@ -163,7 +203,7 @@ raspi.init(function () {
             let obj = data.toString();
 
             //update funckja update
-            // console.log(obj[3]+" "+obj[2]);
+            console.log(obj);
             var sql = 'UPDATE Devices SET value = ? WHERE port = ?';
             let dataToUpdate = [obj[3], obj[2]];
             db.run(sql, dataToUpdate, function(err) {
@@ -171,6 +211,15 @@ raspi.init(function () {
                   return console.error(err.message);
                 }
                 console.log(`Row(s) updated: ${this.changes}`);
+
+                if(this.changes != 0 ){
+                    wss.clients.forEach((client)=>{
+                        if(client.readyState  === WebSocket.OPEN){
+                            DataFromDatabaseByPort(client, obj[2]);
+                            // client.send();
+                        }
+                    })
+                }
               });
             
         });
