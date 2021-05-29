@@ -12,7 +12,7 @@
     "ds18b20-raspi": "^0.3.3",
     "express": "^4.16.4",
     "sqlite3": "^4.0.6",
-    "ws": "^6.2.1"
+    "ws": "^7.4.6"
   },
   "devDependencies": {
     "@types/express": "^4.16.1",
